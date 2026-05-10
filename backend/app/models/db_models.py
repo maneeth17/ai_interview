@@ -86,7 +86,6 @@ class InterviewQA(Base):
     communication_score = Column(Integer, default=0)
     confidence_score = Column(Integer, default=0)
     depth_score = Column(Integer, default=0)
-    audio_metrics = Column(JSON, default=dict)
     feedback = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now)
 

@@ -24,7 +24,11 @@ def _compute_vad(y: np.ndarray, sr: int) -> tuple[np.ndarray, float]:
 
 
 def analyze_audio_bytes(audio_bytes: bytes, transcript: str = "") -> dict:
-    y, sr = librosa.load(io.BytesIO(audio_bytes), sr=SAMPLE_RATE)
+    try:
+        y, sr = librosa.load(io.BytesIO(audio_bytes), sr=SAMPLE_RATE)
+    except Exception:
+        return _fallback(transcript, 0.0)
+
     duration = len(y) / sr
 
     pitch_variation = 0.0
@@ -132,7 +136,9 @@ def _fallback(transcript: str, duration_seconds: float = 60.0) -> dict:
         "speechRateWpm": int(speech_rate),
         "avgSentenceLength": round(avg_words_per_sentence, 1),
         "pitchVariation": 0.0,
+        "f0Mean": 0.0,
         "toneStability": float(tone_variance),
         "energyStability": 50.0,
         "silenceRatio": round(avg_pause_duration / 10.0, 3),
+        "duration": round(duration_seconds, 2),
     }
