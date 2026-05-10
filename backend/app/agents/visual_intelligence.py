@@ -48,7 +48,7 @@ try:
         PoseLandmarker, PoseLandmarkerOptions,
         RunningMode,
     )
-    from mediapipe.tasks.python.core.base_options import BaseOptions, Delegate
+    from mediapipe.tasks.python.core.base_options import BaseOptions
     import mediapipe as mp
     MEDIAPIPE_AVAILABLE = True
     logger.info("MediaPipe %s loaded", mp.__version__)
@@ -70,7 +70,7 @@ def _get_face_landmarker():
             with open(FACE_MODEL_PATH, "rb") as f:
                 model_data = f.read()
             options = FaceLandmarkerOptions(
-                base_options=BaseOptions(model_asset_buffer=model_data, delegate=Delegate.CPU),
+                base_options=BaseOptions(model_asset_buffer=model_data),
                 running_mode=RunningMode.IMAGE,
                 output_face_blendshapes=True,
                 output_facial_transformation_matrixes=True,
@@ -90,7 +90,7 @@ def _get_pose_landmarker():
             with open(POSE_MODEL_PATH, "rb") as f:
                 model_data = f.read()
             options = PoseLandmarkerOptions(
-                base_options=BaseOptions(model_asset_buffer=model_data, delegate=Delegate.CPU),
+                base_options=BaseOptions(model_asset_buffer=model_data),
                 running_mode=RunningMode.IMAGE,
             )
             _pose_landmarker = PoseLandmarker.create_from_options(options)
