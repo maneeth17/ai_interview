@@ -10,9 +10,10 @@ RAW_URL = os.getenv("DATABASE_URL", LOCAL_DATABASE_URL) if USE_REMOTE_DATABASE e
 
 def _normalize_database_url(raw_url: str) -> str:
     if raw_url.startswith("postgresql+asyncpg://"):
-        # Neon uses SSL; asyncpg expects "ssl=require". Drop extra URL params
-        # like channel_binding that asyncpg does not understand.
         return raw_url.split("?")[0] + "?ssl=require"
+    if raw_url.startswith("postgresql://"):
+        async_url = raw_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return async_url.split("?")[0] + "?ssl=require"
     return raw_url
 
 
