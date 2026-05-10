@@ -64,22 +64,42 @@ async def _create_tables():
     print(f"[DB] Tables created/verified using {DATABASE_URL}")
 
 async def migrate_schema():
-    """Add missing columns that SQLAlchemy create_all won't add to existing tables."""
-    missing_columns = {
-        "users": [
-            ("token", "VARCHAR(128)"),
-        ],
+    """Add any columns defined in models but missing from existing DB tables."""
+    if DATABASE_URL.startswith("sqlite"):
+        return  # SQLite create_all handles this
+    type_map = {
+        sa.String: "VARCHAR(255)",
+        sa.Text: "TEXT",
+        sa.Integer: "INTEGER",
+        sa.DateTime: "TIMESTAMP WITH TIME ZONE",
+        sa.JSON: "JSONB",
     }
-    async with engine.begin() as conn:
-        for table, cols in missing_columns.items():
-            for col_name, col_type in cols:
+    from sqlalchemy import inspect as sa_inspect
+
+    async with engine.connect() as conn:
+        existing_tables = await conn.run_sync(
+            lambda sync_conn: sa_inspect(sync_conn).get_table_names()
+        )
+        for table_name, table in Base.metadata.tables.items():
+            if table_name not in existing_tables:
+                continue
+            existing_cols = set(await conn.run_sync(
+                lambda sync_conn: [c["name"] for c in sa_inspect(sync_conn).get_columns(table_name)]
+            ))
+            for column in table.columns:
+                if column.name in existing_cols:
+                    continue
+                sa_type = type(column.type)
+                pg_type = type_map.get(sa_type, "VARCHAR(255)")
+                if isinstance(column.type, sa.String):
+                    pg_type = f"VARCHAR({column.type.length or 255})"
                 try:
                     await conn.execute(
-                        sa.text(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}")
+                        sa.text(f'ALTER TABLE {table_name} ADD COLUMN "{column.name}" {pg_type}')
                     )
-                    print(f"[DB] Added missing column {table}.{col_name}")
-                except Exception:
-                    pass  # column already exists
+                    print(f"[DB] Added missing column {table_name}.{column.name} ({pg_type})")
+                except Exception as e:
+                    print(f"[DB] Could not add {table_name}.{column.name}: {e}")
 
 
 async def get_session() -> AsyncSession:
