@@ -32,6 +32,16 @@ MODEL_DIR = os.path.join(os.path.dirname(__file__))
 FACE_MODEL_PATH = os.path.join(MODEL_DIR, "face_landmarker.task")
 POSE_MODEL_PATH = os.path.join(MODEL_DIR, "pose_landmarker.task")
 
+# Log model presence at import time
+if os.path.exists(FACE_MODEL_PATH):
+    logger.info("face_landmarker.task exists (%.0f KB)", os.path.getsize(FACE_MODEL_PATH) / 1024)
+else:
+    logger.warning("face_landmarker.task MISSING from %s", MODEL_DIR)
+if os.path.exists(POSE_MODEL_PATH):
+    logger.info("pose_landmarker.task exists (%.0f KB)", os.path.getsize(POSE_MODEL_PATH) / 1024)
+else:
+    logger.warning("pose_landmarker.task MISSING from %s", MODEL_DIR)
+
 try:
     from mediapipe.tasks.python.vision import (
         FaceLandmarker, FaceLandmarkerOptions,
@@ -41,8 +51,10 @@ try:
     from mediapipe.tasks.python.core.base_options import BaseOptions, Delegate
     import mediapipe as mp
     MEDIAPIPE_AVAILABLE = True
+    logger.info("MediaPipe %s loaded", mp.__version__)
 except ImportError:
     MEDIAPIPE_AVAILABLE = False
+    logger.warning("MediaPipe not available")
 
 
 _face_landmarker = None
@@ -219,6 +231,13 @@ def analyze_frame(image_data: bytes) -> dict:
         result["error"] = "Could not decode image"
         return result
 
+    h, w = img_rgb.shape[:2]
+    mean_px = float(img_rgb.mean())
+    if h < 10 or w < 10 or mean_px < 1:
+        logger.warning("Bad frame: %dx%d mean=%.1f", w, h, mean_px)
+        result["error"] = "Empty or too-small frame"
+        return result
+
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
     engine = _get_engine()
 
@@ -275,6 +294,8 @@ def analyze_frame(image_data: bytes) -> dict:
 
                 # ── 8. Blink Rate from engine ──
                 result["blink_rate"] = round(engine.compute_blink_rate(), 1)
+            else:
+                logger.warning("No face in %dx%d frame (mean=%.1f)", w, h, mean_px)
 
         except Exception as e:
             logger.error("Face analysis error: %s", e)
