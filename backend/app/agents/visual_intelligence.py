@@ -52,9 +52,9 @@ try:
     import mediapipe as mp
     MEDIAPIPE_AVAILABLE = True
     logger.info("MediaPipe %s loaded", mp.__version__)
-except ImportError:
+except Exception as e:
     MEDIAPIPE_AVAILABLE = False
-    logger.warning("MediaPipe not available")
+    logger.warning("MediaPipe import failed: %s", e)
 
 
 _face_landmarker = None
