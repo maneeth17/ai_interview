@@ -66,7 +66,7 @@ async def _create_tables():
 async def migrate_schema():
     """Add any columns defined in models but missing from existing DB tables."""
     if DATABASE_URL.startswith("sqlite"):
-        return  # SQLite create_all handles this
+        return
     type_map = {
         sa.String: "VARCHAR(255)",
         sa.Text: "TEXT",
@@ -76,10 +76,12 @@ async def migrate_schema():
     }
     from sqlalchemy import inspect as sa_inspect
 
+    # Use a separate connection for inspection (read-only)
     async with engine.connect() as conn:
         existing_tables = await conn.run_sync(
             lambda sync_conn: sa_inspect(sync_conn).get_table_names()
         )
+        missing = []
         for table_name, table in Base.metadata.tables.items():
             if table_name not in existing_tables:
                 continue
@@ -93,13 +95,22 @@ async def migrate_schema():
                 pg_type = type_map.get(sa_type, "VARCHAR(255)")
                 if isinstance(column.type, sa.String):
                     pg_type = f"VARCHAR({column.type.length or 255})"
-                try:
-                    await conn.execute(
-                        sa.text(f'ALTER TABLE {table_name} ADD COLUMN "{column.name}" {pg_type}')
-                    )
-                    print(f"[DB] Added missing column {table_name}.{column.name} ({pg_type})")
-                except Exception as e:
-                    print(f"[DB] Could not add {table_name}.{column.name}: {e}")
+                missing.append((table_name, column.name, pg_type))
+
+    # Each ALTER TABLE in its own transaction so partial failures don't block others
+    for table_name, col_name, pg_type in missing:
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    sa.text(f'ALTER TABLE {table_name} ADD COLUMN "{col_name}" {pg_type}')
+                )
+            print(f"[DB] Added column {table_name}.{col_name} ({pg_type})")
+        except Exception as e:
+            err = str(e)[:100]
+            if "already exists" in err.lower():
+                print(f"[DB] Column {table_name}.{col_name} already exists")
+            else:
+                print(f"[DB] Could not add {table_name}.{col_name}: {err}")
 
 
 async def get_session() -> AsyncSession:

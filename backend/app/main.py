@@ -7,8 +7,8 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / '.env')
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from app.database import DATABASE_URL, init_db, close_db
 from app.routes.auth import router as auth_router
 from app.routes.resume import router as resume_router
@@ -75,5 +75,19 @@ async def health() -> dict:
 # ── Serve Frontend Build (Production) ──
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
-if STATIC_DIR.is_dir():
-    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="frontend")
+STATIC_DIR_EXISTS = STATIC_DIR.is_dir()
+
+
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    if full_path.startswith("api/"):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    if not STATIC_DIR_EXISTS:
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    file_path = STATIC_DIR / full_path
+    if file_path.is_file():
+        return FileResponse(str(file_path))
+    index_path = STATIC_DIR / "index.html"
+    if index_path.is_file():
+        return FileResponse(str(index_path))
+    return JSONResponse({"detail": "Not found"}, status_code=404)
