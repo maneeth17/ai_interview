@@ -38,7 +38,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-BACKEND_URL = os.getenv("BACKEND_URL", "")
+BACKEND_URL = os.getenv("BACKEND_URL", os.getenv("RENDER_EXTERNAL_URL", ""))
 CORS_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
