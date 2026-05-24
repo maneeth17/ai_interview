@@ -2,11 +2,12 @@ services:
   - type: web
     name: interviewai-backend
     runtime: docker
-    repo: https://github.com/srikar-1810/Ai-Interviewer
+    repo: https://github.com/maneeth17/ai_interview
     region: oregon
     plan: free
     branch: main
     dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /api/health
     envVars:
       - key: GROQ_API_KEY
         sync: false
@@ -17,9 +18,9 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: BACKEND_URL
-        value: https://ai-interviewer-7w1u.onrender.com
+        sync: false
       - key: FRONTEND_URL
-        value: https://ai-interviewer-7w1u.onrender.com
+        sync: false
       - key: USE_REMOTE_DATABASE
         value: "true"
       - key: DATABASE_URL
